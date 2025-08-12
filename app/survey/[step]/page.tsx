@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { socket } from "../../../client";
 import { useRouter, useParams } from "next/navigation";
 import ProgressBar from "../../../components/ui/progress-bar";
 import QuestionCard from "../../../components/ui/question-card";
+import { Button } from "@/components/ui/button";
 
 // 예시 설문 데이터
 const surveyQuestions = [
@@ -40,6 +42,8 @@ const surveyQuestions = [
   },
 ];
 
+const userAnswer: string[] = [];
+
 export default function SurveyStepPage() {
   const router = useRouter();
   const params = useParams();
@@ -49,6 +53,7 @@ export default function SurveyStepPage() {
   const [currentQuestion, setCurrentQuestion] = useState(
     surveyQuestions[stepNumber - 1]
   );
+
 
   useEffect(() => {
     // 잘못된 단계 번호 처리
@@ -62,17 +67,21 @@ export default function SurveyStepPage() {
 
   const handleAnswer = (answer: string, index: number) => {
     setIsSubmitting(true);
-
-    console.log("답변:", answer, "인덱스:", index, "단계:", stepNumber);
-
-    // 다음 단계로 이동 또는 결과 페이지로 이동
-    setTimeout(() => {
-      if (stepNumber < surveyQuestions.length) {
-        router.push(`/survey/${stepNumber + 1}`);
-      } else {
-        router.push("/survey/result");
-      }
-    }, 1000);
+    // ref로 직접 답변 누적
+    userAnswer.push(answer)
+    if (stepNumber < surveyQuestions.length) {
+      // 마지막 단계가 아니면 다음 단계로 이동
+      router.push(`/survey/${stepNumber + 1}`);
+    } else {
+      // 마지막 단계면 결과 페이지로 이동 및 socket 전송
+      const userObj = userAnswer.reduce((acc, cur, idx) => {
+        acc[idx] = cur;
+        return acc;
+      }, {} as Record<number, string>);
+      console.log(userObj)
+      socket.emit("survey-result", userObj);
+      router.push("/survey/result");
+    }
   };
 
   if (!currentQuestion) {
@@ -83,7 +92,7 @@ export default function SurveyStepPage() {
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
       <div className="w-full max-w-4xl mx-auto">
         <ProgressBar
-          currentStep={stepNumber}
+          currentStep={stepNumber - 1}
           totalSteps={surveyQuestions.length}
         />
 
@@ -95,12 +104,13 @@ export default function SurveyStepPage() {
         />
 
         <div className="text-center mt-6">
-          <button
+          <Button
             onClick={() => router.push("/survey")}
             className="text-gray-500 hover:text-gray-700 text-sm"
+            variant='ghost'
           >
             ← 처음으로 돌아가기
-          </button>
+          </Button>
         </div>
       </div>
     </main>
