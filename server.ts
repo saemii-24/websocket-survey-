@@ -41,6 +41,18 @@ app.prepare().then(() => {
       console.log("Survey result saved:", answer);
     });
 
+    socket.on("survey-result-get", () => {
+      let results = [];
+      if (fs.existsSync(DATA_PATH)) {
+        try {
+          results = JSON.parse(fs.readFileSync(DATA_PATH, "utf-8"));
+        } catch (e) {
+          results = [];
+        }
+      }
+      socket.emit("survey-result-get", results);
+    });
+
     // 연결 종료 시 처리
     socket.on("disconnect", () => {
       console.log("A user disconnected");

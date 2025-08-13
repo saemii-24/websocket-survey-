@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "../../../components/ui/button";
+import { socket } from "../../../client";
 
 interface SurveyResult {
   questionId: number;
@@ -14,31 +15,7 @@ interface SurveyResult {
   }[];
 }
 
-// 예시 결과 데이터
-const mockResults: SurveyResult[] = [
-  {
-    questionId: 1,
-    question: "당신의 연령대는 어떻게 되시나요?",
-    results: [
-      { option: "10대", count: 5, percentage: 10 },
-      { option: "20대", count: 25, percentage: 50 },
-      { option: "30대", count: 15, percentage: 30 },
-      { option: "40대", count: 3, percentage: 6 },
-      { option: "50대 이상", count: 2, percentage: 4 },
-    ],
-  },
-  {
-    questionId: 2,
-    question: "가장 선호하는 프로그래밍 언어는 무엇인가요?",
-    results: [
-      { option: "JavaScript", count: 20, percentage: 40 },
-      { option: "Python", count: 15, percentage: 30 },
-      { option: "Java", count: 8, percentage: 16 },
-      { option: "TypeScript", count: 5, percentage: 10 },
-      { option: "기타", count: 2, percentage: 4 },
-    ],
-  },
-];
+
 
 export default function SurveyResultPage() {
   const router = useRouter();
@@ -46,11 +23,17 @@ export default function SurveyResultPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 결과 로딩 시뮬레이션
-    setTimeout(() => {
-      setResults(mockResults);
+    socket.emit("survey-result-get"); // 결과 요청 
+
+    //요청한 결과 받기
+    socket.on("survey-result-get", (data) => {
+      setResults(data);
       setIsLoading(false);
-    }, 1500);
+    });
+
+    return () => {
+      socket.off("survey-result-get");
+    };
   }, []);
 
   if (isLoading) {
@@ -70,38 +53,23 @@ export default function SurveyResultPage() {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-4">🎉 설문조사 완료!</h1>
           <p className="text-lg text-gray-600">
-            실시간으로 업데이트되는 결과를 확인해보세요
+            제출된 응답 목록을 확인하세요
           </p>
         </div>
 
         <div className="space-y-8">
-          {results.map((result, index) => (
-            <div
-              key={result.questionId}
-              className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm"
-            >
+          {results.map((answerObj, idx) => (
+            <div key={idx} className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-xl font-semibold mb-4">
-                Q{index + 1}. {result.question}
+                응답자 #{idx + 1}
               </h3>
-
-              <div className="space-y-3">
-                {result.results.map((option, optionIndex) => (
-                  <div key={optionIndex} className="flex items-center">
-                    <div className="w-1/3 text-sm font-medium text-gray-700">
-                      {option.option}
-                    </div>
-                    <div className="w-1/2 bg-gray-200 rounded-full h-4 mx-4">
-                      <div
-                        className="bg-blue-600 h-4 rounded-full transition-all duration-500"
-                        style={{ width: `${option.percentage}%` }}
-                      />
-                    </div>
-                    <div className="w-16 text-sm text-gray-600 text-right">
-                      {option.count}명 ({option.percentage.toFixed(1)}%)
-                    </div>
-                  </div>
+              <ul className="space-y-2">
+                {Object.entries(answerObj).map(([qIdx, value]) => (
+                  <li key={qIdx} className="text-gray-700">
+                    <span className="font-bold">Q{Number(qIdx) + 1}:</span> {value}
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           ))}
         </div>
